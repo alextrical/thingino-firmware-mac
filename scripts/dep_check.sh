@@ -17,14 +17,18 @@ esac
 
 # Check for supported architecture.
 host_arch=$(uname -m)
-if [ "$host_arch" != "x86_64" ] && [ "$host_arch" != "aarch64" ]; then
-	echo "Unsupported architecture: $host_arch. Only x86_64 and aarch64 are supported."
+if [ "$host_arch" != "x86_64" ] && [ "$host_arch" != "aarch64" ] && [ "$host_arch" != "arm64" ]; then
+	echo "Unsupported architecture: $host_arch. Only x86_64, arm64 and aarch64 are supported."
 else
 	echo "Host architecture is $host_arch"
 fi
 
 # Check dd (coreutils or uutils)
-dd_version_output=$(dd --version 2>&1 | head -n1)
+if [ "$(uname -s)" = "Darwin" ]; then
+	dd_version_output=$(gdd --version 2>&1 | head -n1) #mac install with: brew install coreutils
+else
+	dd_version_output=$(dd --version 2>&1 | head -n1)
+fi
 
 # Check if it's uutils coreutils (Rust rewrite)
 if echo "$dd_version_output" | grep -q "uutils coreutils"; then
@@ -60,6 +64,12 @@ check_glibc_version() {
 		return 0
 	fi
 
+	# Check if running on MacOS
+    if [ "$(uname -s)" = "Darwin" ]; then
+		echo "Running on macOS; glibc is not used (uses system libc)."
+		return 0
+	fi
+
 	current_version=$(ldd --version | head -n1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
 	if [ "$(printf '%s\n' "$min_version" "$current_version" | sort -V | head -n1)" = "$min_version" ]; then
 		echo "glibc version is $current_version, which is >= $min_version"
@@ -80,7 +90,7 @@ install_packages() {
 }
 
 # Check if sudo is available
-if command -v sudo >/dev/null 2>&1; then
+if command -v sudo >/dev/null 2>&1 && [ "$(uname -s)" != "Darwin" ]; then
 	install_cmd="sudo"
 else
 	install_cmd=""
@@ -156,6 +166,13 @@ if [ -f /etc/os-release ]; then
 			esac
 			;;
 	esac
+elif [ "$(uname -s)" = "Darwin" ]; then
+    echo "macOS (Darwin)"
+	pkg_manager="brew"
+	pkg_check_command="brew list"
+	pkg_install_cmd="brew install"
+	packages="autoconf bison cmake curl flex findutils gcc git m4 make ncurses libusb unzip wget"
+	# packages="bc cpio dialog file gawk grep newt"
 else
 	echo "Could not determine the operating system."
 	exit 1
@@ -209,6 +226,13 @@ for pkg in $packages; do
 				echo "Package $pkg is installed"
 			fi
 			;;
+		brew)
+			if ! eval $pkg_check_command "$pkg" >/dev/null 2>&1; then
+				packages_to_install="$packages_to_install $pkg"
+			else
+				echo "Package $pkg is installed"
+			fi
+			;;
 		*)
 			echo "Package manager $pkg_manager is not supported."
 			exit 1
@@ -226,7 +250,7 @@ if [ -n "$packages_to_install" ]; then
 	echo "Do you wish to proceed with the installation? (yes/no): "
 	read user_input
 	if [ "$user_input" = "yes" ] || [ "$user_input" = "y" ]; then
-		if [ "$(id -u)" -ne 0 ] && [ -z "$install_cmd" ]; then
+		if [ "$(id -u)" -ne 0 ] && [ -z "$install_cmd" ] && [ "$(uname -s)" != "Darwin" ]; then
 			echo "This script needs superuser privileges to install packages."
 			echo "Please run it with sudo or as root."
 			exit 1

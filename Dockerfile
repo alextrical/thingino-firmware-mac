@@ -4,7 +4,6 @@ FROM debian:trixie
 
 # Build arguments
 ARG USER_ID=1000
-ARG GROUP_ID=1000
 ARG USERNAME=builder
 
 # Install build dependencies
@@ -36,8 +35,8 @@ ENV LANG=en_US.UTF-8 \
     LC_ALL=en_US.UTF-8
 
 # Create user with matching UID/GID for volume permissions
-RUN groupadd -g ${GROUP_ID} ${USERNAME} 2>/dev/null || true && \
-    useradd -m -u ${USER_ID} -g ${GROUP_ID} -s /bin/bash ${USERNAME} && \
+RUN groupadd -g 1000 ${USERNAME} && \
+    useradd -m -u ${USER_ID} -g 1000 -s /bin/bash ${USERNAME} && \
     echo "${USERNAME}:${USERNAME}" | chpasswd && \
     echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
