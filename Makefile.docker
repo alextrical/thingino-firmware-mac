@@ -41,8 +41,8 @@ docker-build:
 	@if ! $(CONTAINER_ENGINE) images | grep -q "$(DOCKER_IMAGE).*$(DOCKER_TAG)"; then \
 		echo "Building Docker image: $(DOCKER_IMAGE):$(DOCKER_TAG)"; \
 		$(CONTAINER_ENGINE) build --network=host \
-			--build-arg USER_ID=$(USER_ID) \
-			--build-arg GROUP_ID=$(GROUP_ID) \
+			--build-arg USER_ID=1000 \
+			--build-arg GROUP_ID=1000 \
 			--build-arg USERNAME=$(USERNAME) \
 			-t $(DOCKER_IMAGE):$(DOCKER_TAG) \
 			-f Dockerfile .; \
@@ -51,7 +51,7 @@ docker-build:
 	fi
 	@$(CONTAINER_ENGINE) volume create $(OUTPUT_VOLUME) > /dev/null 2>&1 || true
 	@$(CONTAINER_ENGINE) run --rm -v $(OUTPUT_VOLUME):/output debian:trixie \
-		sh -c "chown -R $(USER_ID):$(GROUP_ID) /output && chmod 775 /output" 2>/dev/null || true
+		sh -c "chown -R 1000:1000 /output && chmod 775 /output" 2>/dev/null || true
 
 .PHONY: docker-shell
 docker-shell: docker-build
